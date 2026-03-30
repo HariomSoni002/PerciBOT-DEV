@@ -99,6 +99,10 @@
     "viewName": {
       "type": "string",
       "default": ""
+    },
+    "memoryMode": {
+      "type": "string",
+      "default": "disabled"
     }
   },
   "methods": {

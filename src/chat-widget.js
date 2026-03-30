@@ -4,6 +4,7 @@
 
   const BACKEND_URL     = 'https://percibot.cfapps.us10-001.hana.ondemand.com'
   const CRYPTO_KEY      = 'percibot-default-key'
+  const REQUEST_SOURCE  = 'sac_widget'
   const MAX_IMAGE_BYTES = 5 * 1024 * 1024
   const ACCEPTED_IMAGES = ['image/jpeg','image/png','image/webp','image/gif']
 
@@ -545,7 +546,7 @@
         datasets:'', primaryColor:'#1f4fbf', primaryDark:'#163a8a',
         surfaceColor:'#ffffff', surfaceAlt:'#f8f9fc', textColor:'#0d1117',
         answerPrompt:'', behaviourPrompt:'', schemaPrompt:'',
-        clientId:'', schemaName:'', viewName:'',
+        clientId:'', schemaName:'', viewName:'', memoryMode:'disabled',
       }
       this._datasets = {}
       this._sessionId = (
@@ -842,6 +843,9 @@
           api_key_encrypted: xorEncrypt(apiKey),
           model:             this._props.model           || 'gpt-4o-mini',
           web_search:        wsFlag,
+          requestSource:     REQUEST_SOURCE,
+          // memoryMode is persisted in SAC as disabled|session|hana_db.
+          memory_mode:       this._props.memoryMode      || 'disabled',
         }
         if (imgSnap) payload.image_base64 = imgSnap.dataUri
         const sn = (this._props.schemaName || '').trim()

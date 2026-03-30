@@ -79,6 +79,24 @@
       .toast.show{opacity:1; transform:translateY(0)}
       .divider{border:none; border-top:1px solid #e7eaf0; margin:18px 0}
       .danger{color:#b00020; font-size:12px}
+      .toggle-row{
+        display:flex; align-items:center; justify-content:space-between;
+        gap:12px; margin-bottom:10px;
+      }
+      .toggle{
+        width:42px; height:24px; appearance:none; border-radius:999px;
+        border:1px solid #cfd5e3; background:#e5e9f2; cursor:pointer;
+        position:relative; outline:none; transition:all .2s ease;
+      }
+      .toggle::after{
+        content:''; position:absolute; width:18px; height:18px; border-radius:50%;
+        background:#fff; top:2px; left:2px; transition:transform .2s ease;
+        box-shadow:0 1px 2px rgba(0,0,0,.2);
+      }
+      .toggle:checked{ background:#1f4fbf; border-color:#1f4fbf }
+      .toggle:checked::after{ transform:translateX(18px) }
+      .memory-options{ display:none; margin-top:10px }
+      .memory-options.show{ display:block }
     </style>
 
     <div class="panel">
@@ -184,7 +202,30 @@
       <hr class="divider" />
 
       <!-- ════════════════════════════════════════
-           SECTION 3 — Theme
+           SECTION 3 — Memory
+           ════════════════════════════════════════ -->
+      <div class="section">
+        <div class="title">Memory</div>
+        <div class="toggle-row">
+          <label for="memoryEnabled">Enable Context Memory</label>
+          <input id="memoryEnabled" class="toggle" type="checkbox" />
+        </div>
+        <div id="memoryOptions" class="memory-options">
+          <div class="f" style="margin-bottom:8px">
+            <label>Memory Type</label>
+            <select id="memoryMode">
+              <option value="session">Session memory</option>
+              <option value="hana_db">HANA DB</option>
+            </select>
+          </div>
+          <div class="hint" id="memoryHint"></div>
+        </div>
+      </div>
+
+      <hr class="divider" />
+
+      <!-- ════════════════════════════════════════
+           SECTION 4 — Theme
            ════════════════════════════════════════ -->
       <div class="section">
         <div class="title">Theme</div>
@@ -223,6 +264,7 @@
       this.keys = [
         'apiKey', 'model', 'welcomeText',
         'schemaName', 'viewName',
+        'memoryMode',
         'primaryColor', 'primaryDark', 'surfaceColor', 'surfaceAlt', 'textColor',
         'clientId', 'answerPrompt', 'behaviourPrompt', 'schemaPrompt',
       ]
@@ -239,6 +281,14 @@
         if (!el) return
         el.addEventListener('input',  markDirty)
         el.addEventListener('change', markDirty)
+      })
+      this.$('memoryEnabled').addEventListener('change', () => {
+        this._syncMemoryUI()
+        this._setDirty(true)
+      })
+      this.$('memoryMode').addEventListener('change', () => {
+        this._syncMemoryUI()
+        this._setDirty(true)
       })
 
       this.$('resetBtn').addEventListener('click',    () => this._reset())
@@ -294,6 +344,7 @@
         welcomeText:     p.welcomeText     ?? 'Hello, I\u2019m PerciBOT! How can I assist you?',
         schemaName:      p.schemaName      ?? '',
         viewName:        p.viewName        ?? '',
+        memoryMode:      p.memoryMode      ?? 'disabled',
         primaryColor:    p.primaryColor    ?? '#1f4fbf',
         primaryDark:     p.primaryDark     ?? '#163a8a',
         surfaceColor:    p.surfaceColor    ?? '#ffffff',
@@ -305,8 +356,26 @@
         schemaPrompt:    p.schemaPrompt    ?? '',
       }
       this.keys.forEach(k => { if (this.$(k)) this.$(k).value = this._props[k] })
+      const enabledMemory = this._props.memoryMode === 'session' || this._props.memoryMode === 'hana_db'
+      this.$('memoryEnabled').checked = enabledMemory
+      this.$('memoryMode').value = this._props.memoryMode === 'hana_db' ? 'hana_db' : 'session'
+      this._syncMemoryUI()
       if (!external) this._setDirty(false)
       this._validateTheme()
+    }
+
+    _syncMemoryUI () {
+      const enabled = this.$('memoryEnabled').checked
+      const modeEl = this.$('memoryMode')
+      const mode = modeEl.value === 'hana_db' ? 'hana_db' : 'session'
+      this.$('memoryOptions').classList.toggle('show', enabled)
+      if (!enabled) {
+        this.$('memoryHint').textContent = ''
+        return
+      }
+      this.$('memoryHint').textContent = mode === 'hana_db'
+        ? 'Stores context in HANA so conversations can continue across sessions.'
+        : 'Keeps context during this chat session only and resets for a new session.'
     }
 
     _validateTheme () {
@@ -332,6 +401,8 @@
         welcomeText:     get('welcomeText'),
         schemaName:      get('schemaName').trim(),
         viewName:        get('viewName').trim(),
+        // Keep one compact key for backend and widget state.
+        memoryMode:      this.$('memoryEnabled').checked ? (get('memoryMode') || 'session') : 'disabled',
         primaryColor:    get('primaryColor'),
         primaryDark:     get('primaryDark'),
         surfaceColor:    get('surfaceColor'),
