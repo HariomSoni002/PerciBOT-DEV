@@ -11,14 +11,14 @@
     {
       "kind": "main",
       "tag": "perci-bot",
-      "url": "https://basimwangde.github.io/percibot-sac-widget/src/chat-widget.js",
+      "url": "https://HariomSoni002.github.io/PerciBOT-DEV/src/chat-widget.js",
       "integrity": "",
       "ignoreIntegrity": true
     },
     {
       "kind": "builder",
       "tag": "perci-bot-builder",
-      "url": "https://basimwangde.github.io/percibot-sac-widget/src/builder.js",
+      "url": "https://HariomSoni002.github.io/PerciBOT-DEV/src/builder.js",
       "integrity": "",
       "ignoreIntegrity": true
     }
