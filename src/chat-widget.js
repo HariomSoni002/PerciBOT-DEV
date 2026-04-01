@@ -1,6 +1,6 @@
 /* PerciBot — SAC Chat Widget
 */
-import { renderChart, destroyChart } from './chart-renderer.js'
+import { renderChart } from './chart-renderer.js'
 
 ;(function () {
 
@@ -8,13 +8,14 @@ import { renderChart, destroyChart } from './chart-renderer.js'
   const CRYPTO_KEY      = 'percibot-default-key'
   const REQUEST_SOURCE  = 'sac_widget'
   const MAX_IMAGE_BYTES = 5 * 1024 * 1024
-  const ACCEPTED_IMAGES = ['image/jpeg','image/png','image/webp','image/gif']
+  const ACCEPTED_IMAGES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 
   function xorEncrypt (pt) {
     const enc = new TextEncoder()
-    const ptB = enc.encode(pt), keyB = enc.encode(CRYPTO_KEY)
-    const x   = ptB.map((b,i) => b ^ keyB[i % keyB.length])
-    return btoa(String.fromCharCode(...x)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'')
+    const ptB = enc.encode(pt)
+    const keyB = enc.encode(CRYPTO_KEY)
+    const x = ptB.map((b, i) => b ^ keyB[i % keyB.length])
+    return btoa(String.fromCharCode(...x)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
   }
 
   // ── Inline SVG icons ──────────────────────────────────────────────────────
@@ -42,14 +43,11 @@ import { renderChart, destroyChart } from './chart-renderer.js'
   const tpl = document.createElement('template')
   tpl.innerHTML = /* html */`
   <style>
-    /* ─ Reset / host ──────────────────────────────────────────────── */
     :host { display:block; height:100%; font:14px/1.5 "Inter","Segoe UI",Arial,sans-serif; color:#0d1117; box-sizing:border-box }
     *, *::before, *::after { box-sizing:inherit; margin:0; padding:0 }
 
-    /* ─ Shell ─────────────────────────────────────────────────────── */
     .wrap { height:100%; display:flex; flex-direction:column; background:#fff }
 
-    /* ─ Header ────────────────────────────────────────────────────── */
     header {
       flex-shrink:0; display:flex; align-items:center; justify-content:space-between;
       padding:10px 14px; color:#fff; border-radius:12px; margin:10px 10px 0;
@@ -73,7 +71,6 @@ import { renderChart, destroyChart } from './chart-renderer.js'
     }
     .chip:hover { background:rgba(255,255,255,.28) }
 
-    /* ─ Mode toggle ───────────────────────────────────────────────── */
     .modeToggle {
       display:inline-flex;
       align-items:center;
@@ -134,7 +131,6 @@ import { renderChart, destroyChart } from './chart-renderer.js'
       border-color:rgba(171,240,219,.38);
     }
 
-    /* ─ Dataset drawer ────────────────────────────────────────────── */
     #dsDrawer {
       position:absolute; right:14px; top:54px; z-index:30;
       min-width:240px; max-width:380px; max-height:240px; overflow:auto;
@@ -145,20 +141,17 @@ import { renderChart, destroyChart } from './chart-renderer.js'
     #dsDrawer .ds:last-child { border-bottom:none }
     #dsDrawer .name          { font-weight:700 }
 
-    /* ─ Body ──────────────────────────────────────────────────────── */
     .body  { flex:1; display:flex; flex-direction:column; padding:10px; gap:8px; min-height:0 }
     .panel {
       flex:1; overflow-y:auto; overflow-x:hidden; padding:12px 14px;
       border:1px solid #e3e6f0; border-radius:14px; background:#f8f9fc;
     }
 
-    /* Allow selecting/copying chat content (some hosts set user-select:none globally) */
     .panel, .msg, .msg * {
       user-select:text;
       -webkit-user-select:text;
     }
 
-    /* ─ Messages ──────────────────────────────────────────────────── */
     .msg {
       max-width:82%; margin:5px 0; padding:10px 14px;
       border-radius:18px; line-height:1.55;
@@ -178,7 +171,6 @@ import { renderChart, destroyChart } from './chart-renderer.js'
     .msg.bot thead th { background:#f2f5ff }
     .msg.bot code     { background:#f0f2f7; padding:1px 5px; border-radius:4px; font-size:12.5px; font-family:monospace }
 
-    /* Typing animation */
     .typing { display:inline-flex !important; align-items:center; gap:8px; position:sticky; bottom:0 }
     .dots   { display:inline-flex; gap:4px }
     .dots b {
@@ -192,7 +184,6 @@ import { renderChart, destroyChart } from './chart-renderer.js'
       40%     { opacity:1;  transform:translateY(-3px) }
     }
 
-    /* Image in user bubble */
     .msgImg {
       display:block; max-width:100%; max-height:200px; object-fit:cover;
       border-radius:10px; margin-bottom:7px; cursor:zoom-in;
@@ -200,14 +191,12 @@ import { renderChart, destroyChart } from './chart-renderer.js'
     }
     .msgImg:hover { opacity:.87 }
 
-    /* ─ Chart card (bot response) ─────────────────────────────────── */
     .chartCard {
       margin-top:10px; border-radius:14px; overflow:hidden;
       border:1px solid #e3e6f0; background:#fff;
       box-shadow:0 2px 12px rgba(0,0,0,.06);
     }
 
-    /* Canvas wrapper — Chart.js renders into this div */
     .chartCanvas {
       display:block; width:100%; height:320px;
       padding:16px 16px 10px;
@@ -215,7 +204,6 @@ import { renderChart, destroyChart } from './chart-renderer.js'
       background:#fff;
     }
 
-    /* Chart footer bar */
     .chartFooter {
       display:flex; align-items:center; justify-content:space-between;
       padding:7px 12px; background:#f8f9fc; border-top:1px solid #e9ecf5;
@@ -226,7 +214,6 @@ import { renderChart, destroyChart } from './chart-renderer.js'
       max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
     }
 
-    /* Inline chart error — soft, one liner */
     .chartErr {
       display:flex; align-items:center; gap:7px;
       margin-top:8px; padding:7px 11px; border-radius:9px;
@@ -234,10 +221,8 @@ import { renderChart, destroyChart } from './chart-renderer.js'
     }
     .chartErr svg { width:14px; height:14px; flex-shrink:0; color:#c94040 }
 
-    /* ─ Composer wrapper ──────────────────────────────────────────── */
     .cWrap { position:relative; flex-shrink:0 }
 
-    /* The card itself */
     .composer {
       border:1.5px solid #d5d9e8; border-radius:18px; background:#fff;
       transition:border-color .18s, box-shadow .18s;
@@ -248,7 +233,6 @@ import { renderChart, destroyChart } from './chart-renderer.js'
       box-shadow:0 0 0 3px rgba(90,130,230,.10), 0 2px 10px rgba(0,0,0,.07);
     }
 
-    /* Loading shimmer row */
     .shimRow { display:none; align-items:center; gap:10px; padding:8px 14px 0 }
     .shimRow.vis { display:flex }
     .shimBox {
@@ -259,7 +243,6 @@ import { renderChart, destroyChart } from './chart-renderer.js'
     .shimTxt { font-size:12px; color:#7a80a0; font-style:italic }
     @keyframes pb-shim { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
-    /* Pills row */
     .pills { display:none; flex-wrap:wrap; align-items:center; gap:6px; padding:8px 12px 0 }
     .pills.vis { display:flex }
 
@@ -285,10 +268,8 @@ import { renderChart, destroyChart } from './chart-renderer.js'
     }
     .pill:hover .prem { display:inline-flex }
 
-    /* Input row */
     .inputRow { display:flex; align-items:flex-end; gap:6px; padding:8px 10px 8px 10px }
 
-    /* Plus button */
     .btnPlus {
       flex-shrink:0; width:30px; height:30px; border-radius:8px;
       border:1.5px solid #d0d4e0; background:#fff;
@@ -299,7 +280,6 @@ import { renderChart, destroyChart } from './chart-renderer.js'
     .btnPlus:hover  { background:#eaedf8; border-color:#a8b2d4; color:#1f4fbf }
     .btnPlus.active { background:#1f4fbf; border-color:#1f4fbf; color:#fff }
 
-    /* Textarea */
     textarea {
       flex:1; resize:none; height:34px; min-height:34px; max-height:196px;
       padding:6px 2px; border:none; outline:none; background:transparent;
@@ -307,7 +287,6 @@ import { renderChart, destroyChart } from './chart-renderer.js'
     }
     textarea::placeholder { color:#9ba3bd }
 
-    /* Send button */
     .btnSend {
       flex-shrink:0; width:32px; height:32px; border-radius:9px;
       border:none; display:flex; align-items:center; justify-content:center;
@@ -318,7 +297,6 @@ import { renderChart, destroyChart } from './chart-renderer.js'
     .btnSend:not(:disabled):hover  { opacity:.86 }
     .btnSend:not(:disabled):active { transform:scale(.93) }
 
-    /* Clear chat button — sits right of send, ghost style */
     .btnClear {
       flex-shrink:0; width:32px; height:32px; border-radius:9px;
       border:1.5px solid #d0d4e0; background:#fff;
@@ -331,7 +309,6 @@ import { renderChart, destroyChart } from './chart-renderer.js'
     .btnClear:hover  { background:#fff0f0; border-color:#f0a0a0; color:#c94040 }
     .btnClear:active { transform:scale(.93) }
 
-    /* ─ Plus popover ──────────────────────────────────────────────── */
     .popover {
       position:absolute; bottom:calc(100% + 8px); left:0;
       min-width:190px; background:#fff; border:1px solid #dde1ee;
@@ -356,7 +333,6 @@ import { renderChart, destroyChart } from './chart-renderer.js'
     .popTick::after { content:'✓'; font-size:9.5px; color:#fff; font-weight:700 }
     .popItem.sel .popTick { display:flex }
 
-    /* ─ Footer ────────────────────────────────────────────────────── */
     .footer {
       flex-shrink:0; display:flex; justify-content:space-between; align-items:center;
       padding:4px 14px 8px; font-size:11.5px; opacity:.6;
@@ -364,7 +340,6 @@ import { renderChart, destroyChart } from './chart-renderer.js'
     .footer a { color:inherit; text-decoration:none }
     .footer a:hover { text-decoration:underline }
 
-    /* ─ Lightbox ──────────────────────────────────────────────────── */
     .lightbox {
       display:none; position:fixed; inset:0; z-index:9999;
       background:rgba(0,0,0,.78); align-items:center; justify-content:center;
@@ -401,7 +376,6 @@ import { renderChart, destroyChart } from './chart-renderer.js'
 
   <div class="wrap">
 
-    <!-- Header -->
     <header>
       <div class="brand">PerciBOT</div>
 
@@ -417,14 +391,10 @@ import { renderChart, destroyChart } from './chart-renderer.js'
       <div id="dsDrawer"></div>
     </header>
 
-    <!-- Body -->
     <div class="body">
       <div class="panel" id="chat"></div>
 
-      <!-- Composer card + popover -->
       <div class="cWrap">
-
-        <!-- Upward popover -->
         <div class="popover" id="popover">
           <div class="popItem" id="popAttach">
             ${IC.clip}
@@ -438,17 +408,13 @@ import { renderChart, destroyChart } from './chart-renderer.js'
         </div>
 
         <div class="composer">
-
-          <!-- Shimmer while FileReader loads -->
           <div class="shimRow" id="shimRow">
             <div class="shimBox"></div>
             <span class="shimTxt">Attaching image…</span>
           </div>
 
-          <!-- Active pills (image + web search) -->
           <div class="pills" id="pills"></div>
 
-          <!-- Textarea row -->
           <div class="inputRow">
             <button class="btnPlus" id="btnPlus" title="Add attachment or enable tools">
               ${IC.plus}
@@ -462,23 +428,19 @@ import { renderChart, destroyChart } from './chart-renderer.js'
               ${IC.clear}
             </button>
           </div>
-
         </div>
       </div>
-    </div><!-- /.body -->
+    </div>
 
-    <!-- Hidden file input -->
     <input type="file" id="fileInput"
            accept="image/jpeg,image/png,image/webp,image/gif"
            style="display:none" aria-hidden="true" />
 
-    <!-- Lightbox -->
     <div class="lightbox" id="lb">
       <button class="lbX" id="lbX">&#x2715;</button>
       <img id="lbImg" src="" alt="Preview" />
     </div>
 
-    <!-- Footer -->
     <div class="footer">
       <span>AI can make mistakes. Please verify results.</span>
       <span><a href="https://www.linkedin.com/company/percipere/" target="_blank" rel="noopener">Percipere Consulting</a></span>
@@ -487,7 +449,6 @@ import { renderChart, destroyChart } from './chart-renderer.js'
   </div>
   `
 
-  // ── Component class ────────────────────────────────────────────────────────
   class PerciBot extends HTMLElement {
 
     constructor () {
@@ -496,20 +457,30 @@ import { renderChart, destroyChart } from './chart-renderer.js'
       this._sr.appendChild(tpl.content.cloneNode(true))
       this.$ = id => this._sr.getElementById(id)
 
-      // ── State ──────────────────────────────────────────────────────
-      this._img        = null   // { dataUri, name, mimeType } | null
-      this._ws         = false  // web search enabled
-      this._popOpen    = false
-      this._typingEl   = null
+      this._img      = null
+      this._ws       = false
+      this._popOpen  = false
+      this._typingEl = null
 
       this._props = {
-        apiKey:'', model:'gpt-4o-mini',
+        apiKey: '',
+        model: 'gpt-4o-mini',
         welcomeText: 'Hello, I\u2019m PerciBOT! How can I assist you?',
-        datasets:'', primaryColor:'#1f4fbf', primaryDark:'#163a8a',
-        surfaceColor:'#ffffff', surfaceAlt:'#f8f9fc', textColor:'#0d1117',
-        answerPrompt:'', behaviourPrompt:'', schemaPrompt:'',
-        clientId:'', schemaName:'', viewName:'', memoryMode:'disabled',
+        datasets: '',
+        primaryColor: '#1f4fbf',
+        primaryDark: '#163a8a',
+        surfaceColor: '#ffffff',
+        surfaceAlt: '#f8f9fc',
+        textColor: '#0d1117',
+        answerPrompt: '',
+        behaviourPrompt: '',
+        schemaPrompt: '',
+        clientId: '',
+        schemaName: '',
+        viewName: '',
+        memoryMode: 'disabled',
       }
+
       this._datasets = {}
       this._sessionId = (
         typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -520,10 +491,10 @@ import { renderChart, destroyChart } from './chart-renderer.js'
       this._wire()
     }
 
-    // ── SAC lifecycle hooks ──────────────────────────────────────────────────
-
     connectedCallback () {
-      if (!this.$('chat').innerHTML && this._props.welcomeText) this._botMsg(this._props.welcomeText)
+      if (!this.$('chat').innerHTML && this._props.welcomeText) {
+        this._botMsg(this._props.welcomeText)
+      }
 
       this.$('modelChip').addEventListener('click', () => {
         const d = this.$('dsDrawer')
@@ -559,45 +530,40 @@ import { renderChart, destroyChart } from './chart-renderer.js'
 
     onCustomWidgetRequest (method, params) {
       if (method === 'setDatasets') {
-        const v = typeof params === 'string' ? params
-          : Array.isArray(params) ? (params[0] || '') : (params && params.payload) || ''
+        const v = typeof params === 'string'
+          ? params
+          : Array.isArray(params)
+              ? (params[0] || '')
+              : (params && params.payload) || ''
         if (v) this._parseDS(v)
       }
     }
 
-    // ── Event wiring ─────────────────────────────────────────────────────────
-
     _wire () {
-      const ta    = this.$('input')
-      const send  = this.$('btnSend')
-      const plus  = this.$('btnPlus')
+      const ta = this.$('input')
+      const send = this.$('btnSend')
+      const plus = this.$('btnPlus')
       const clear = this.$('btnClear')
-      const pop   = this.$('popover')
+      const pop = this.$('popover')
 
-      // Textarea: auto-resize + send-button state
       ta.addEventListener('input', () => { this._resize(); this._syncSend() })
       ta.addEventListener('keydown', e => {
         if (e.key !== 'Enter') return
-
-        // Shift+Enter => newline (standard chat behavior)
         if (e.shiftKey) return
-
-        // Enter, Ctrl+Enter, Cmd+Enter => send
         e.preventDefault()
         this._send()
       })
 
-      // Send
       send.addEventListener('click', () => this._send())
-
-      // Clear chat — wipes all messages from the panel and shows the welcome text again
       clear.addEventListener('click', () => this._clearChat())
 
-      // Plus: toggle popover
       plus.addEventListener('click', e => { e.stopPropagation(); this._togglePop() })
 
-      // Popover items
-      this.$('popAttach').addEventListener('click', () => { this._closePop(); this.$('fileInput').click() })
+      this.$('popAttach').addEventListener('click', () => {
+        this._closePop()
+        this.$('fileInput').click()
+      })
+
       this.$('popWS').addEventListener('click', () => {
         this._ws = !this._ws
         this.$('popWS').classList.toggle('sel', this._ws)
@@ -606,14 +572,12 @@ import { renderChart, destroyChart } from './chart-renderer.js'
         this._closePop()
       })
 
-      // File input
       this.$('fileInput').addEventListener('change', e => {
         const f = e.target.files && e.target.files[0]
         if (f) this._loadFile(f)
         e.target.value = ''
       })
 
-      // Paste anywhere in shadow DOM
       this._sr.addEventListener('paste', e => {
         if (!e.clipboardData) return
         const item = Array.from(e.clipboardData.items || []).find(i => i.kind === 'file' && ACCEPTED_IMAGES.includes(i.type))
@@ -623,21 +587,20 @@ import { renderChart, destroyChart } from './chart-renderer.js'
         if (f) this._loadFile(f)
       })
 
-      // Close popover on outside click (document level, passive)
       const closePop = () => this._closePop()
       document.addEventListener('click', closePop)
       this._sr.addEventListener('click', e => {
         if (!plus.contains(e.target) && !pop.contains(e.target)) this._closePop()
       })
 
-      // Lightbox close
       this.$('lb').addEventListener('click', e => {
         if (e.target === this.$('lb') || e.target === this.$('lbX')) this._closeLB()
       })
-      document.addEventListener('keydown', e => { if (e.key === 'Escape') this._closeLB() })
-    }
 
-    // ── Popover ──────────────────────────────────────────────────────────────
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') this._closeLB()
+      })
+    }
 
     _togglePop () { this._popOpen ? this._closePop() : this._openPop() }
 
@@ -653,23 +616,16 @@ import { renderChart, destroyChart } from './chart-renderer.js'
       this.$('btnPlus').classList.remove('active')
     }
 
-    // ── Clear chat ───────────────────────────────────────────────────────────
-    // Removes all messages from the panel and re-shows the welcome greeting.
-    // Does NOT reset session state — conversation memory on the backend persists.
-
     _clearChat () {
       this.$('chat').innerHTML = ''
       if (this._props.welcomeText) this._botMsg(this._props.welcomeText)
     }
-
-    // ── Pills ────────────────────────────────────────────────────────────────
 
     _renderPills () {
       const c = this.$('pills')
       c.innerHTML = ''
       let any = false
 
-      // Image pill
       if (this._img) {
         any = true
         const p = document.createElement('div')
@@ -678,11 +634,14 @@ import { renderChart, destroyChart } from './chart-renderer.js'
                        <span class="plabel">${this._esc(this._img.name)}</span>
                        <button class="prem" title="Remove">&#x2715;</button>`
         p.querySelector('.pthumb').addEventListener('click', () => this._openLB(this._img.dataUri))
-        p.querySelector('.prem').addEventListener('click',  () => { this._img = null; this._renderPills(); this._syncSend() })
+        p.querySelector('.prem').addEventListener('click', () => {
+          this._img = null
+          this._renderPills()
+          this._syncSend()
+        })
         c.appendChild(p)
       }
 
-      // Web search pill
       if (this._ws) {
         any = true
         const p = document.createElement('div')
@@ -701,70 +660,116 @@ import { renderChart, destroyChart } from './chart-renderer.js'
       c.classList.toggle('vis', any)
     }
 
-    // ── File handling ────────────────────────────────────────────────────────
-
     _loadFile (file) {
       if (!ACCEPTED_IMAGES.includes(file.type)) {
         this._botMsg('\u26a0\ufe0f Unsupported type. Please attach a JPEG, PNG, WEBP, or GIF image.')
         return
       }
+
       if (file.size > MAX_IMAGE_BYTES) {
         this._botMsg('\u26a0\ufe0f Image exceeds 5 MB. Please use a smaller file.')
         return
       }
+
       this.$('shimRow').classList.add('vis')
       const r = new FileReader()
-      r.onload  = e => { this.$('shimRow').classList.remove('vis'); this._img = { dataUri: e.target.result, name: file.name, mimeType: file.type }; this._renderPills(); this._syncSend() }
-      r.onerror = () => { this.$('shimRow').classList.remove('vis'); this._botMsg('\u26a0\ufe0f Failed to read the file. Please try again.') }
+
+      r.onload = e => {
+        this.$('shimRow').classList.remove('vis')
+        this._img = {
+          dataUri: e.target.result,
+          name: file.name,
+          mimeType: file.type,
+        }
+        this._renderPills()
+        this._syncSend()
+      }
+
+      r.onerror = () => {
+        this.$('shimRow').classList.remove('vis')
+        this._botMsg('\u26a0\ufe0f Failed to read the file. Please try again.')
+      }
+
       r.readAsDataURL(file)
     }
 
-    // ── Lightbox ─────────────────────────────────────────────────────────────
+    _openLB (src) {
+      this.$('lbImg').src = src
+      this.$('lb').classList.add('vis')
+    }
 
-    _openLB (src) { this.$('lbImg').src = src; this.$('lb').classList.add('vis') }
-    _closeLB ()   { this.$('lb').classList.remove('vis'); this.$('lbImg').src = '' }
-
-    // ── Send ─────────────────────────────────────────────────────────────────
+    _closeLB () {
+      this.$('lb').classList.remove('vis')
+      this.$('lbImg').src = ''
+    }
 
     _syncSend () {
       this.$('btnSend').disabled = !(this.$('input').value.trim() || this._img)
     }
 
     // ── Dev backdoor: parse "AAAYYYZZZ::key::val::key::val::AAAYYYZZZ" ────────
-    // Supported keys: answer, chart_data (JSON string of the chart_data object)
-    // Legacy keys chart_base64 / mime_type / chart_filename still accepted for
-    // backwards compatibility during migration but are ignored by the new renderer.
-    // Returns null if the input is not a cheat-code string.
+    // Supported keys:
+    //   - answer      -> plain bot text
+    //   - chart_data  -> JSON string matching the chart-renderer contract
+    //
+    // Example:
+    // AAAYYYZZZ::answer::Sales trend preview::chart_data::{"chart_type":"bar","title":"Revenue by Region","x_axis_title":"Region","y_axis_title":"Revenue","data_mapping":{"x":"REGION","y":["REVENUE"],"color":null},"rows":[{"REGION":"North","REVENUE":120},{"REGION":"South","REVENUE":95}]}::AAAYYYZZZ
+    //
+    // Returns null if:
+    //   - the input is not a cheat-code string
+    //   - chart_data is present but invalid JSON
+    //   - chart_data is present but does not have the minimum shape required
     _parseDevCheat (raw) {
       const SENTINEL = 'AAAYYYZZZ'
-      const s = raw.trim()
+      const s = String(raw || '').trim()
+
       if (!s.startsWith(SENTINEL + '::') || !s.endsWith('::' + SENTINEL)) return null
+
       const inner = s.slice(SENTINEL.length + 2, s.length - SENTINEL.length - 2)
-      const parts  = inner.split('::')
-      const out    = {}
-      for (let i = 0; i + 1 < parts.length; i += 2) out[parts[i].trim()] = parts[i + 1]
-      // Require at least one meaningful field so random messages don't trigger
-      if (!out.answer && !out.chart_data && !out.chart_base64) return null
+      const parts = inner.split('::')
+      const out = {}
+
+      for (let i = 0; i + 1 < parts.length; i += 2) {
+        const key = String(parts[i] || '').trim()
+        const val = parts[i + 1]
+        if (key) out[key] = val
+      }
+
+      if (!out.answer && !out.chart_data) return null
 
       let chartData = null
+
       if (out.chart_data) {
-        try { chartData = JSON.parse(out.chart_data) } catch (_) {}
+        try {
+          chartData = JSON.parse(out.chart_data)
+        } catch (_) {
+          return null
+        }
+
+        const hasValidShape =
+          chartData &&
+          typeof chartData === 'object' &&
+          typeof chartData.chart_type === 'string' &&
+          chartData.data_mapping &&
+          typeof chartData.data_mapping === 'object' &&
+          Array.isArray(chartData.rows)
+
+        if (!hasValidShape) return null
       }
 
       return {
-        answer:     out.answer     || '',
+        answer: (out.answer || '').trim(),
         chart_data: chartData,
       }
     }
 
     async _send () {
-      const q      = (this.$('input').value || '').trim()
-      const imgSnap = this._img   ? { ...this._img } : null
-      const wsFlag  = this._ws
+      const q = (this.$('input').value || '').trim()
+      const imgSnap = this._img ? { ...this._img } : null
+      const wsFlag = this._ws
 
       if (!q && !imgSnap) return
 
-      // ── Dev cheat-code short-circuit ──────────────────────────────
       const cheat = q ? this._parseDevCheat(q) : null
       if (cheat) {
         this._userMsg('[DEV] Chart render test', null)
@@ -772,20 +777,19 @@ import { renderChart, destroyChart } from './chart-renderer.js'
         this._resize()
         this._syncSend()
         this._startTyping()
-        // Small artificial delay so the shimmer is visible
-        await new Promise(r => setTimeout(r, 900))
+
+        await new Promise(resolve => setTimeout(resolve, 900))
+
         this._stopTyping()
         this._renderBotResponse({
-          answer:     cheat.answer,
+          answer: cheat.answer,
           chart_data: cheat.chart_data,
         })
         return
       }
 
-      // Render user bubble first
       this._userMsg(q, imgSnap)
 
-      // Clear input state
       this.$('input').value = ''
       this._resize()
       this._img = null
@@ -793,46 +797,56 @@ import { renderChart, destroyChart } from './chart-renderer.js'
       this._syncSend()
 
       const apiKey = (this._props.apiKey || '').trim()
-      if (!apiKey) { this._botMsg('\u26a0\ufe0f API key not configured. Open the Builder panel.'); return }
+      if (!apiKey) {
+        this._botMsg('\u26a0\ufe0f API key not configured. Open the Builder panel.')
+        return
+      }
 
       this._startTyping()
       this.$('btnSend').disabled = true
 
       try {
         const payload = {
-          query:             q || '(Image attached — please analyse)',
-          session_id:        this._sessionId,
-          answer_prompt:     this._props.answerPrompt    || '',
-          behaviour_prompt:  this._props.behaviourPrompt || '',
-          schema_prompt:     this._props.schemaPrompt    || '',
-          client_id:         this._props.clientId        || '',
+          query: q || '(Image attached — please analyse)',
+          session_id: this._sessionId,
+          answer_prompt: this._props.answerPrompt || '',
+          behaviour_prompt: this._props.behaviourPrompt || '',
+          schema_prompt: this._props.schemaPrompt || '',
+          client_id: this._props.clientId || '',
           api_key_encrypted: xorEncrypt(apiKey),
-          model:             this._props.model           || 'gpt-4o-mini',
-          web_search:        wsFlag,
-          requestSource:     REQUEST_SOURCE,
-          // memoryMode is persisted in SAC as disabled|session|hana_db.
-          memory_mode:       this._props.memoryMode      || 'disabled',
+          model: this._props.model || 'gpt-4o-mini',
+          web_search: wsFlag,
+          requestSource: REQUEST_SOURCE,
+          memory_mode: this._props.memoryMode || 'disabled',
         }
+
         if (imgSnap) payload.image_base64 = imgSnap.dataUri
+
         const sn = (this._props.schemaName || '').trim()
-        const vn = (this._props.viewName   || '').trim()
-        if (sn && vn) { payload.schema_name = sn; payload.view_name = vn }
+        const vn = (this._props.viewName || '').trim()
+        if (sn && vn) {
+          payload.schema_name = sn
+          payload.view_name = vn
+        }
 
         const res = await fetch(`${BACKEND_URL}/presales/ask`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         })
 
         if (!res.ok) {
           let d = ''
-          try { const e = await res.json(); d = e.detail || e.message || '' } catch (_) {}
+          try {
+            const e = await res.json()
+            d = e.detail || e.message || ''
+          } catch (_) {}
           throw new Error(`HTTP ${res.status} ${res.statusText}${d ? ': ' + d : ''}`)
         }
 
         const data = await res.json()
         this._stopTyping()
         this._renderBotResponse(data)
-
       } catch (err) {
         this._stopTyping()
         this._botMsg(`\u26a0\ufe0f ${err.message}`)
@@ -841,11 +855,6 @@ import { renderChart, destroyChart } from './chart-renderer.js'
       }
     }
 
-    // ── Unified bot response renderer ────────────────────────────────────────
-    // Handles: answer text (markdown) + optional interactive Chart.js chart.
-    // `data.chart_data` — the new frontend-rendered chart payload (preferred).
-    // `data.chart_base64` — legacy image path, rendered as before if present
-    //   and chart_data is absent (allows a graceful transition period).
     _renderBotResponse (data) {
       const answerText = (data.answer && data.answer.trim())
         ? data.answer
@@ -853,22 +862,18 @@ import { renderChart, destroyChart } from './chart-renderer.js'
 
       const b = this._bubble('bot')
 
-      // ① Answer text always renders first
       const textWrap = document.createElement('div')
       textWrap.innerHTML = this._renderMd(String(answerText))
       b.appendChild(textWrap)
 
-      // ② Interactive Chart.js card (preferred path — uses chart_data)
       if (data.chart_data && typeof data.chart_data === 'object') {
         const card = document.createElement('div')
         card.className = 'chartCard'
 
-        // Canvas wrapper — renderChart() will inject the <canvas> here
         const canvasWrap = document.createElement('div')
         canvasWrap.className = 'chartCanvas'
         card.appendChild(canvasWrap)
 
-        // Footer: chart title
         const footer = document.createElement('div')
         footer.className = 'chartFooter'
         const titleText = data.chart_data.title || 'Chart'
@@ -879,7 +884,6 @@ import { renderChart, destroyChart } from './chart-renderer.js'
         this.$('chat').appendChild(b)
         this._scroll()
 
-        // Async render — does not block the message from appearing
         renderChart(canvasWrap, data.chart_data)
           .then(() => this._scroll())
           .catch(err => {
@@ -897,71 +901,25 @@ import { renderChart, destroyChart } from './chart-renderer.js'
         return
       }
 
-      // ③ Legacy fallback — image-based chart (chart_base64 path)
-      //    Keep this block during the backend migration period. Once the
-      //    backend is fully migrated to sending chart_data, this block
-      //    can be removed.
-      if (data.chart_base64 && data.mime_type) {
-        const card = document.createElement('div')
-        card.className = 'chartCard'
-
-        const rawB64 = data.chart_base64 || ''
-        const mime   = data.mime_type    || 'image/png'
-        const imgSrc = rawB64.startsWith('data:') ? rawB64 : `data:${mime};base64,${rawB64}`
-        const fname  = (data.chart_filename || 'chart.png').replace(/^.*[\\/]/, '')
-
-        const img = document.createElement('img')
-        img.alt         = fname
-        img.style.cssText = 'display:block;width:100%;border-radius:0;opacity:0;transition:opacity .3s'
-
-        img.addEventListener('load',  () => { img.style.opacity = '1'; this._scroll() })
-        img.addEventListener('error', () => {
-          const errEl = document.createElement('div')
-          errEl.className = 'chartErr'
-          errEl.innerHTML = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor"
-              stroke-width="2" stroke-linecap="round">
-              <circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="10"/>
-              <circle cx="10" cy="14" r=".5" fill="currentColor"/>
-            </svg>Chart image could not be displayed.`
-          card.insertBefore(errEl, img)
-          img.remove()
-          this._scroll()
-        })
-        img.src = imgSrc
-        card.appendChild(img)
-
-        const footer = document.createElement('div')
-        footer.className = 'chartFooter'
-        footer.innerHTML = `<span class="cfName">${this._esc(fname)}</span>`
-        const dl = document.createElement('a')
-        dl.className = 'cfDl'
-        dl.href      = imgSrc
-        dl.download  = fname
-        dl.innerHTML = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12">
-            <path d="M8 2v8M5 7l3 3 3-3"/><rect x="2" y="11" width="12" height="3" rx="1.5"/>
-          </svg>Save`
-        footer.appendChild(dl)
-        card.appendChild(footer)
-
-        b.appendChild(card)
-      }
-
       this.$('chat').appendChild(b)
       this._scroll()
     }
-
-    // ── Message rendering ────────────────────────────────────────────────────
 
     _userMsg (text, imgSnap) {
       const b = this._bubble('user')
       if (imgSnap) {
         const img = document.createElement('img')
-        img.className = 'msgImg'; img.src = imgSnap.dataUri; img.alt = imgSnap.name || 'image'
+        img.className = 'msgImg'
+        img.src = imgSnap.dataUri
+        img.alt = imgSnap.name || 'image'
         img.addEventListener('click', () => this._openLB(imgSnap.dataUri))
         b.appendChild(img)
       }
-      if (text) { const s = document.createElement('span'); s.textContent = text; b.appendChild(s) }
+      if (text) {
+        const s = document.createElement('span')
+        s.textContent = text
+        b.appendChild(s)
+      }
       this.$('chat').appendChild(b)
       this._scroll()
     }
@@ -975,10 +933,10 @@ import { renderChart, destroyChart } from './chart-renderer.js'
 
     _bubble (role) {
       const b = document.createElement('div')
-      b.className        = `msg ${role}`
+      b.className = `msg ${role}`
       b.style.background = role === 'user' ? '#ddeeff' : '#ffffff'
-      b.style.border     = '1px solid #e3e6f0'
-      b.style.color      = this._props.textColor || '#0d1117'
+      b.style.border = '1px solid #e3e6f0'
+      b.style.color = this._props.textColor || '#0d1117'
       return b
     }
 
@@ -987,7 +945,8 @@ import { renderChart, destroyChart } from './chart-renderer.js'
       const b = this._bubble('bot')
       b.classList.add('typing')
       b.innerHTML = `<span style="font-size:12px;opacity:.6">PerciBOT</span><span class="dots"><b></b><b></b><b></b></span>`
-      this.$('chat').appendChild(b); this._scroll()
+      this.$('chat').appendChild(b)
+      this._scroll()
       this._typingEl = b
     }
 
@@ -996,9 +955,10 @@ import { renderChart, destroyChart } from './chart-renderer.js'
       this._typingEl = null
     }
 
-    _scroll () { const c = this.$('chat'); c.scrollTop = c.scrollHeight }
-
-    // ── Auto-grow textarea ────────────────────────────────────────────────────
+    _scroll () {
+      const c = this.$('chat')
+      c.scrollTop = c.scrollHeight
+    }
 
     _resize () {
       const ta = this.$('input')
@@ -1006,81 +966,116 @@ import { renderChart, destroyChart } from './chart-renderer.js'
       ta.style.height = Math.min(ta.scrollHeight, 196) + 'px'
     }
 
-    // ── Theme ─────────────────────────────────────────────────────────────────
-
     _applyTheme () {
-      const p = this._props, sr = this._sr
-      const grad = `linear-gradient(135deg,${p.primaryColor||'#1f4fbf'},${p.primaryDark||'#163a8a'})`
-      sr.querySelector('.wrap').style.background       = p.surfaceColor || '#fff'
-      sr.querySelector('.wrap').style.color            = p.textColor    || '#0d1117'
-      sr.querySelector('.panel').style.background      = p.surfaceAlt   || '#f8f9fc'
-      sr.querySelector('header').style.background      = grad
-      sr.querySelector('.btnSend').style.background    = grad
+      const p = this._props
+      const sr = this._sr
+      const grad = `linear-gradient(135deg,${p.primaryColor || '#1f4fbf'},${p.primaryDark || '#163a8a'})`
+      sr.querySelector('.wrap').style.background = p.surfaceColor || '#fff'
+      sr.querySelector('.wrap').style.color = p.textColor || '#0d1117'
+      sr.querySelector('.panel').style.background = p.surfaceAlt || '#f8f9fc'
+      sr.querySelector('header').style.background = grad
+      sr.querySelector('.btnSend').style.background = grad
     }
 
-    // ── Markdown ──────────────────────────────────────────────────────────────
-
     _esc (s = '') {
-      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     }
 
     _mdInline (s) {
       let t = this._esc(s)
-      t = t.replace(/`([^`]+)`/g,       '<code>$1</code>')
+      t = t.replace(/`([^`]+)`/g, '<code>$1</code>')
       t = t.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-      t = t.replace(/\*([^*]+)\*/g,     '<em>$1</em>')
+      t = t.replace(/\*([^*]+)\*/g, '<em>$1</em>')
       return t
     }
 
     _mdTable (block) {
       const rows = block.trim().split('\n').filter(Boolean)
       if (rows.length < 2) return null
-      const norm = rows.map(l => l.replace(/^\s*\|\s*/,'').replace(/\s*\|\s*$/,''))
-      if (!norm[1].split('|').map(s=>s.trim()).every(c=>/^:?-{3,}:?$/.test(c))) return null
-      const cells = l => l.split('|').map(c=>c.trim()).filter(Boolean).map(c=>this._mdInline(c))
-      const head  = cells(norm[0]); const body = norm.slice(2).map(cells)
-      return `<table><thead><tr>${head.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${body.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`
+      const norm = rows.map(l => l.replace(/^\s*\|\s*/, '').replace(/\s*\|\s*$/, ''))
+      if (!norm[1].split('|').map(s => s.trim()).every(c => /^:?-{3,}:?$/.test(c))) return null
+      const cells = l => l.split('|').map(c => c.trim()).filter(Boolean).map(c => this._mdInline(c))
+      const head = cells(norm[0])
+      const body = norm.slice(2).map(cells)
+      return `<table><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${body.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`
     }
 
     _mdLists (md) {
-      const lines = md.split('\n'); const out = []; let ul=false, ol=false
-      const flush = () => { if(ul){out.push('</ul>');ul=false} if(ol){out.push('</ol>');ol=false} }
-      for (const l of lines) {
-        if      (/^\s*[-*]\s+/.test(l))     { if(!ul){flush();out.push('<ul>');ul=true} out.push(`<li>${this._mdInline(l.replace(/^\s*[-*]\s+/,''))}</li>`) }
-        else if (/^\s*\d+\.\s+/.test(l))    { if(!ol){flush();out.push('<ol>');ol=true} out.push(`<li>${this._mdInline(l.replace(/^\s*\d+\.\s+/,''))}</li>`) }
-        else if (l.trim()==='')             { flush(); out.push('<br/>') }
-        else                                { flush(); out.push(`<p>${this._mdInline(l)}</p>`) }
+      const lines = md.split('\n')
+      const out = []
+      let ul = false
+      let ol = false
+
+      const flush = () => {
+        if (ul) { out.push('</ul>'); ul = false }
+        if (ol) { out.push('</ol>'); ol = false }
       }
-      flush(); return out.join('')
+
+      for (const l of lines) {
+        if (/^\s*[-*]\s+/.test(l)) {
+          if (!ul) { flush(); out.push('<ul>'); ul = true }
+          out.push(`<li>${this._mdInline(l.replace(/^\s*[-*]\s+/, ''))}</li>`)
+        } else if (/^\s*\d+\.\s+/.test(l)) {
+          if (!ol) { flush(); out.push('<ol>'); ol = true }
+          out.push(`<li>${this._mdInline(l.replace(/^\s*\d+\.\s+/, ''))}</li>`)
+        } else if (l.trim() === '') {
+          flush()
+          out.push('<br/>')
+        } else {
+          flush()
+          out.push(`<p>${this._mdInline(l)}</p>`)
+        }
+      }
+
+      flush()
+      return out.join('')
     }
 
     _renderMd (md = '') {
       return md.split(/\n{2,}/).map(b => this._mdTable(b) || this._mdLists(b)).join('\n')
     }
 
-    // ── Dataset UI ────────────────────────────────────────────────────────────
-
     _parseDS (jsonStr) {
       try {
         const raw = JSON.parse(jsonStr || '{}') || {}
         const out = {}
         Object.keys(raw).forEach(k => {
-          const { schema=[], rows2D=[] } = raw[k] || {}
-          out[k] = { schema, rows2D, rows: rows2D.map(a => { const o={}; schema.forEach((c,i)=>o[c]=a[i]); return o }) }
+          const { schema = [], rows2D = [] } = raw[k] || {}
+          out[k] = {
+            schema,
+            rows2D,
+            rows: rows2D.map(a => {
+              const o = {}
+              schema.forEach((c, i) => { o[c] = a[i] })
+              return o
+            }),
+          }
         })
         this._datasets = out
-      } catch { this._datasets = {} }
+      } catch {
+        this._datasets = {}
+      }
       this._updateDSUI()
     }
 
     _updateDSUI () {
-      const chip  = this.$('modelChip'), drawer = this.$('dsDrawer')
+      const chip = this.$('modelChip')
+      const drawer = this.$('dsDrawer')
       const items = Object.entries(this._datasets || {})
-      if (!items.length) { chip.textContent = 'AI Assistant'; drawer.style.display = 'none'; return }
-      const pts = items.map(([k,v]) => `${k}: ${v.rows?.length||0} rows`)
-      chip.textContent = pts.length > 2 ? `${pts.slice(0,2).join(' · ')} · +${pts.length-2} more` : pts.join(' · ')
-      drawer.innerHTML = items.map(([n,d]) =>
-        `<div class="ds"><div class="name">${n}</div><div>${d.rows?.length||0} rows</div><div>${(d.schema||[]).slice(0,10).join(', ')}</div></div>`
+
+      if (!items.length) {
+        chip.textContent = 'AI Assistant'
+        drawer.style.display = 'none'
+        return
+      }
+
+      const pts = items.map(([k, v]) => `${k}: ${v.rows?.length || 0} rows`)
+      chip.textContent = pts.length > 2
+        ? `${pts.slice(0, 2).join(' · ')} · +${pts.length - 2} more`
+        : pts.join(' · ')
+
+      drawer.innerHTML = items.map(([n, d]) =>
+        `<div class="ds"><div class="name">${n}</div><div>${d.rows?.length || 0} rows</div><div>${(d.schema || []).slice(0, 10).join(', ')}</div></div>`
       ).join('') || '<div class="ds">No datasets</div>'
     }
   }
