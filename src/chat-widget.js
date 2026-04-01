@@ -1,5 +1,7 @@
 /* PerciBot — SAC Chat Widget
 */
+import { renderChart, destroyChart } from './chart-renderer.js'
+
 ;(function () {
 
   const BACKEND_URL     = 'https://percibot.cfapps.us10-001.hana.ondemand.com'
@@ -205,50 +207,13 @@
       box-shadow:0 2px 12px rgba(0,0,0,.06);
     }
 
-    /* Shimmer placeholder while chart image loads */
-    .chartShim {
-      display:flex; flex-direction:column; align-items:center; justify-content:center;
-      gap:14px; padding:32px 20px; background:#f8f9fc;
+    /* Canvas wrapper — Chart.js renders into this div */
+    .chartCanvas {
+      display:block; width:100%; height:320px;
+      padding:16px 16px 10px;
+      box-sizing:border-box;
+      background:#fff;
     }
-    .chartShim .shimStrip {
-      width:100%; height:12px; border-radius:6px;
-      background:linear-gradient(90deg,#e8ecf8 25%,#d0d6f0 50%,#e8ecf8 75%);
-      background-size:300% 100%; animation:pb-shim 1.4s ease-in-out infinite;
-    }
-    .chartShim .shimStrip:nth-child(2){width:80%}
-    .chartShim .shimStrip:nth-child(3){width:60%}
-    .chartShim .shimBars {
-      display:flex; align-items:flex-end; gap:6px; height:64px; width:100%; justify-content:center;
-    }
-    .chartShim .shimBar {
-      width:18px; border-radius:4px 4px 0 0;
-      background:linear-gradient(90deg,#e8ecf8 25%,#d0d6f0 50%,#e8ecf8 75%);
-      background-size:300% 100%; animation:pb-shim 1.4s ease-in-out infinite;
-    }
-    .chartShim .shimBar:nth-child(1){height:40%; animation-delay:.0s}
-    .chartShim .shimBar:nth-child(2){height:70%; animation-delay:.1s}
-    .chartShim .shimBar:nth-child(3){height:55%; animation-delay:.2s}
-    .chartShim .shimBar:nth-child(4){height:90%; animation-delay:.3s}
-    .chartShim .shimBar:nth-child(5){height:65%; animation-delay:.4s}
-    .chartShim .shimBar:nth-child(6){height:45%; animation-delay:.5s}
-    .chartShim .shimBar:nth-child(7){height:80%; animation-delay:.6s}
-    .chartShim .shimLabel {
-      font-size:12px; color:#8890b0; font-weight:500; letter-spacing:.2px;
-      display:flex; align-items:center; gap:6px;
-    }
-    .chartShim .shimDot {
-      width:7px; height:7px; border-radius:50%; background:#b0b8d4;
-      animation:pb-blink 1s ease-in-out infinite;
-    }
-    .chartShim .shimDot:nth-child(2){animation-delay:.18s}
-    .chartShim .shimDot:nth-child(3){animation-delay:.36s}
-
-    /* Rendered chart image — constrained to 60% of container width (40% reduction) */
-    .chartImg {
-      display:block; width:60%; max-width:60%; cursor:zoom-in;
-      transition:opacity .3s ease; border-radius:0;
-    }
-    .chartImg:hover { opacity:.93 }
 
     /* Chart footer bar */
     .chartFooter {
@@ -256,13 +221,10 @@
       padding:7px 12px; background:#f8f9fc; border-top:1px solid #e9ecf5;
       font-size:11.5px; color:#7a80a0;
     }
-    .chartFooter .cfName { font-weight:600; color:#4a5280; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
-    .cfDl {
-      display:inline-flex; align-items:center; gap:4px; font-size:11.5px; font-weight:600;
-      color:#1f4fbf; text-decoration:none; padding:3px 8px; border-radius:6px;
-      border:1px solid #cdd5f0; background:#eef1fc; transition:background .14s;
+    .chartFooter .cfName {
+      font-weight:600; color:#4a5280;
+      max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
     }
-    .cfDl:hover { background:#dde4fc }
 
     /* Inline chart error — soft, one liner */
     .chartErr {
@@ -769,7 +731,9 @@
     }
 
     // ── Dev backdoor: parse "AAAYYYZZZ::key::val::key::val::AAAYYYZZZ" ────────
-    // Supported keys: mime_type, chart_filename, chart_base64, answer
+    // Supported keys: answer, chart_data (JSON string of the chart_data object)
+    // Legacy keys chart_base64 / mime_type / chart_filename still accepted for
+    // backwards compatibility during migration but are ignored by the new renderer.
     // Returns null if the input is not a cheat-code string.
     _parseDevCheat (raw) {
       const SENTINEL = 'AAAYYYZZZ'
@@ -780,12 +744,16 @@
       const out    = {}
       for (let i = 0; i + 1 < parts.length; i += 2) out[parts[i].trim()] = parts[i + 1]
       // Require at least one meaningful field so random messages don't trigger
-      if (!out.answer && !out.chart_base64) return null
+      if (!out.answer && !out.chart_data && !out.chart_base64) return null
+
+      let chartData = null
+      if (out.chart_data) {
+        try { chartData = JSON.parse(out.chart_data) } catch (_) {}
+      }
+
       return {
-        answer:         out.answer         || '',
-        mime_type:      out.mime_type      || 'image/png',
-        chart_filename: out.chart_filename || 'chart.png',
-        chart_base64:   out.chart_base64   || '',
+        answer:     out.answer     || '',
+        chart_data: chartData,
       }
     }
 
@@ -808,10 +776,8 @@
         await new Promise(r => setTimeout(r, 900))
         this._stopTyping()
         this._renderBotResponse({
-          answer:         cheat.answer,
-          mime_type:      cheat.mime_type,
-          chart_filename: cheat.chart_filename,
-          chart_base64:   cheat.chart_base64,
+          answer:     cheat.answer,
+          chart_data: cheat.chart_data,
         })
         return
       }
@@ -876,75 +842,94 @@
     }
 
     // ── Unified bot response renderer ────────────────────────────────────────
-    // Handles: answer text (markdown) + optional chart card.
-    // Keeps text and chart in the same bubble so they're visually cohesive.
+    // Handles: answer text (markdown) + optional interactive Chart.js chart.
+    // `data.chart_data` — the new frontend-rendered chart payload (preferred).
+    // `data.chart_base64` — legacy image path, rendered as before if present
+    //   and chart_data is absent (allows a graceful transition period).
     _renderBotResponse (data) {
-      const answerText  = (data.answer  && data.answer.trim())  ? data.answer  : (data.message || '(No response received)')
-      const hasChart    = !!(data.chart_base64 && data.mime_type)
-      const b           = this._bubble('bot')
+      const answerText = (data.answer && data.answer.trim())
+        ? data.answer
+        : (data.message || '(No response received)')
+
+      const b = this._bubble('bot')
 
       // ① Answer text always renders first
       const textWrap = document.createElement('div')
       textWrap.innerHTML = this._renderMd(String(answerText))
       b.appendChild(textWrap)
 
-      // ② Chart card
-      if (hasChart) {
+      // ② Interactive Chart.js card (preferred path — uses chart_data)
+      if (data.chart_data && typeof data.chart_data === 'object') {
         const card = document.createElement('div')
         card.className = 'chartCard'
 
-        // Shimmer placeholder (shown while image loads)
-        const shim = document.createElement('div')
-        shim.className = 'chartShim'
-        shim.innerHTML = `
-          <div class="shimBars">
-            <div class="shimBar"></div><div class="shimBar"></div><div class="shimBar"></div>
-            <div class="shimBar"></div><div class="shimBar"></div><div class="shimBar"></div>
-            <div class="shimBar"></div>
-          </div>
-          <div class="shimStrip"></div>
-          <div class="shimStrip"></div>
-          <div class="shimStrip"></div>
-          <div class="shimLabel">
-            <div class="shimDot"></div><div class="shimDot"></div><div class="shimDot"></div>
-            Rendering chart…
-          </div>`
-        card.appendChild(shim)
+        // Canvas wrapper — renderChart() will inject the <canvas> here
+        const canvasWrap = document.createElement('div')
+        canvasWrap.className = 'chartCanvas'
+        card.appendChild(canvasWrap)
 
-        // Build the src — support both raw base64 and pre-formed data URIs
-        const rawB64  = data.chart_base64 || ''
-        const mime    = data.mime_type    || 'image/png'
-        const imgSrc  = rawB64.startsWith('data:') ? rawB64 : `data:${mime};base64,${rawB64}`
-        const fname   = (data.chart_filename || 'chart.png').replace(/^.*[\\/]/, '')
+        // Footer: chart title
+        const footer = document.createElement('div')
+        footer.className = 'chartFooter'
+        const titleText = data.chart_data.title || 'Chart'
+        footer.innerHTML = `<span class="cfName">${this._esc(titleText)}</span>`
+        card.appendChild(footer)
+
+        b.appendChild(card)
+        this.$('chat').appendChild(b)
+        this._scroll()
+
+        // Async render — does not block the message from appearing
+        renderChart(canvasWrap, data.chart_data)
+          .then(() => this._scroll())
+          .catch(err => {
+            canvasWrap.innerHTML = ''
+            const errEl = document.createElement('div')
+            errEl.className = 'chartErr'
+            errEl.innerHTML = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round">
+                <circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="10"/>
+                <circle cx="10" cy="14" r=".5" fill="currentColor"/>
+              </svg>${this._esc(err.message || 'Chart could not be rendered.')}`
+            canvasWrap.appendChild(errEl)
+            this._scroll()
+          })
+        return
+      }
+
+      // ③ Legacy fallback — image-based chart (chart_base64 path)
+      //    Keep this block during the backend migration period. Once the
+      //    backend is fully migrated to sending chart_data, this block
+      //    can be removed.
+      if (data.chart_base64 && data.mime_type) {
+        const card = document.createElement('div')
+        card.className = 'chartCard'
+
+        const rawB64 = data.chart_base64 || ''
+        const mime   = data.mime_type    || 'image/png'
+        const imgSrc = rawB64.startsWith('data:') ? rawB64 : `data:${mime};base64,${rawB64}`
+        const fname  = (data.chart_filename || 'chart.png').replace(/^.*[\\/]/, '')
 
         const img = document.createElement('img')
-        img.className = 'chartImg'
-        img.alt       = fname
-        img.style.opacity = '0'
+        img.alt         = fname
+        img.style.cssText = 'display:block;width:100%;border-radius:0;opacity:0;transition:opacity .3s'
 
-        img.addEventListener('load', () => {
-          shim.style.display = 'none'
-          img.style.opacity  = '1'
-          this._scroll()
-        })
-
+        img.addEventListener('load',  () => { img.style.opacity = '1'; this._scroll() })
         img.addEventListener('error', () => {
-          shim.style.display = 'none'
           const errEl = document.createElement('div')
           errEl.className = 'chartErr'
-          errEl.innerHTML = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="10"/><circle cx="10" cy="14" r=".5" fill="currentColor"/>
-            </svg>Chart could not be displayed — the image data may be unavailable.`
-          card.appendChild(errEl)
+          errEl.innerHTML = `<svg viewBox="0 0 20 20" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round">
+              <circle cx="10" cy="10" r="8"/><line x1="10" y1="6" x2="10" y2="10"/>
+              <circle cx="10" cy="14" r=".5" fill="currentColor"/>
+            </svg>Chart image could not be displayed.`
+          card.insertBefore(errEl, img)
+          img.remove()
           this._scroll()
         })
-
-        img.addEventListener('click', () => this._openLB(img.src))
         img.src = imgSrc
-
         card.appendChild(img)
 
-        // Footer: filename + download link
         const footer = document.createElement('div')
         footer.className = 'chartFooter'
         footer.innerHTML = `<span class="cfName">${this._esc(fname)}</span>`
@@ -952,7 +937,8 @@
         dl.className = 'cfDl'
         dl.href      = imgSrc
         dl.download  = fname
-        dl.innerHTML = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12">
+        dl.innerHTML = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12">
             <path d="M8 2v8M5 7l3 3 3-3"/><rect x="2" y="11" width="12" height="3" rx="1.5"/>
           </svg>Save`
         footer.appendChild(dl)
