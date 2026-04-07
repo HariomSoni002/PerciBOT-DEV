@@ -993,23 +993,25 @@
       this._typingEl = null
 
       this._props = {
-        apiKey: '',
-        model: 'gpt-4o-mini',
-        welcomeText: 'Hello, I\u2019m PerciBOT! How can I assist you?',
-        datasets: '',
-        primaryColor: '#1f4fbf',
-        primaryDark: '#163a8a',
-        surfaceColor: '#ffffff',
-        surfaceAlt: '#f8f9fc',
-        textColor: '#0d1117',
-        answerPrompt: '',
-        behaviourPrompt: '',
-        schemaPrompt: '',
-        clientId: '',
-        schemaName: '',
-        viewName: '',
-        memoryMode: 'disabled',
+          apiKey: '',
+          model: 'gpt-4o-mini',
+          welcomeText: 'Hello, I\u2019m PerciBOT! How can I assist you?',
+          datasets: '',
+          primaryColor: '#1f4fbf',
+          primaryDark: '#163a8a',
+          surfaceColor: '#ffffff',
+          surfaceAlt: '#f8f9fc',
+          textColor: '#0d1117',
+          answerPrompt: '',
+          behaviourPrompt: '',
+          schemaPrompt: '',
+          clientId: '',
+          schemaName: '',
+          viewName: '',
+          databaseType: 'datasphere',
+          memoryMode: 'disabled',
       }
+
 
       this._datasets = {}
       this._sessionId = (
@@ -1020,7 +1022,9 @@
 
       this._wire()
     }
-
+    _isMemoryEnabled () {
+          return this._props.memoryMode === 'session' || this._props.memoryMode === 'hana_db'
+        }
     connectedCallback () {
       if (!this.$('chat').innerHTML && this._props.welcomeText) {
         this._botMsg(this._props.welcomeText)
@@ -1346,17 +1350,21 @@
           api_key_encrypted: xorEncrypt(apiKey),
           model: this._props.model || 'gpt-4o-mini',
           web_search: wsFlag,
-          requestSource: REQUEST_SOURCE,
-          memory_mode: this._props.memoryMode || 'disabled',
+          database_type: (this._props.databaseType || 'datasphere').trim().toLowerCase(),
+          memory: this._isMemoryEnabled(),
+          resource_type: REQUEST_SOURCE,
         }
 
         if (imgSnap) payload.image_base64 = imgSnap.dataUri
 
-        const sn = (this._props.schemaName || '').trim()
-        const vn = (this._props.viewName || '').trim()
-        if (sn && vn) {
-          payload.schema_name = sn
-          payload.view_name = vn
+        if (payload.database_type === 'datasphere') {
+          const sn = (this._props.schemaName || '').trim()
+          const vn = (this._props.viewName || '').trim()
+
+          if (sn && vn) {
+            payload.schema_name = sn
+            payload.view_name = vn
+          }
         }
 
         const res = await fetch(`${BACKEND_URL}/presales/ask`, {

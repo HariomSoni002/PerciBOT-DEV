@@ -395,11 +395,12 @@
       this._pairSeq  = 0
 
       this.keys = [
-        'apiKey', 'model', 'welcomeText',
-        'memoryMode',
-        'primaryColor', 'primaryDark', 'surfaceColor', 'surfaceAlt', 'textColor',
-        'clientId', 'answerPrompt', 'behaviourPrompt', 'schemaPrompt',
-      ]
+          'apiKey', 'model', 'welcomeText',
+          'databaseType',
+          'memoryMode',
+          'primaryColor', 'primaryDark', 'surfaceColor', 'surfaceAlt', 'textColor',
+          'clientId', 'answerPrompt', 'behaviourPrompt', 'schemaPrompt',
+        ]
       this.inputs = this.keys.map(k => this.$(k)).filter(Boolean)
 
       this._wire()
@@ -762,45 +763,90 @@
 
     // ── Apply properties ───────────────────────────────────────────────────
 
-    _apply (p = {}, external = false) {
-      this._props = {
-        apiKey:          p.apiKey          ?? '',
-        model:           p.model           ?? 'gpt-4o-mini',
-        welcomeText:     p.welcomeText     ?? 'Hello, I\u2019m PerciBOT! How can I assist you?',
-        schemaName:      p.schemaName      ?? '',
-        viewName:        p.viewName        ?? '',
-        memoryMode:      p.memoryMode      ?? 'disabled',
-        primaryColor:    p.primaryColor    ?? '#1f4fbf',
-        primaryDark:     p.primaryDark     ?? '#163a8a',
-        surfaceColor:    p.surfaceColor    ?? '#ffffff',
-        surfaceAlt:      p.surfaceAlt      ?? '#f6f8ff',
-        textColor:       p.textColor       ?? '#0b1221',
-        clientId:        p.clientId        ?? '',
-        answerPrompt:    p.answerPrompt    ?? '',
-        behaviourPrompt: p.behaviourPrompt ?? '',
-        schemaPrompt:    p.schemaPrompt    ?? '',
-      }
+//    _apply (p = {}, external = false) {
+//      this._props = {
+//        apiKey:          p.apiKey          ?? '',
+//        model:           p.model           ?? 'gpt-4o-mini',
+//        welcomeText:     p.welcomeText     ?? 'Hello, I\u2019m PerciBOT! How can I assist you?',
+//        schemaName:      p.schemaName      ?? '',
+//        viewName:        p.viewName        ?? '',
+//        memoryMode:      p.memoryMode      ?? 'disabled',
+//        primaryColor:    p.primaryColor    ?? '#1f4fbf',
+//        primaryDark:     p.primaryDark     ?? '#163a8a',
+//        surfaceColor:    p.surfaceColor    ?? '#ffffff',
+//        surfaceAlt:      p.surfaceAlt      ?? '#f6f8ff',
+//        textColor:       p.textColor       ?? '#0b1221',
+//        clientId:        p.clientId        ?? '',
+//        answerPrompt:    p.answerPrompt    ?? '',
+//        behaviourPrompt: p.behaviourPrompt ?? '',
+//        schemaPrompt:    p.schemaPrompt    ?? '',
+//      }
+       _apply (p = {}, external = false) {
+          this._props = {
+            apiKey:          p.apiKey          ?? '',
+            model:           p.model           ?? 'gpt-4o-mini',
+            welcomeText:     p.welcomeText     ?? 'Hello, I\u2019m PerciBOT! How can I assist you?',
+            schemaName:      p.schemaName      ?? '',
+            viewName:        p.viewName        ?? '',
+            databaseType:    p.databaseType    ?? 'datasphere',
+            memoryMode:      p.memoryMode      ?? 'disabled',
+            primaryColor:    p.primaryColor    ?? '#1f4fbf',
+            primaryDark:     p.primaryDark     ?? '#163a8a',
+            surfaceColor:    p.surfaceColor    ?? '#ffffff',
+            surfaceAlt:      p.surfaceAlt      ?? '#f6f8ff',
+            textColor:       p.textColor       ?? '#0b1221',
+            clientId:        p.clientId        ?? '',
+            answerPrompt:    p.answerPrompt    ?? '',
+            behaviourPrompt: p.behaviourPrompt ?? '',
+            schemaPrompt:    p.schemaPrompt    ?? '',
+          }
 
-      // Standard inputs
-      this.keys.forEach(k => { if (this.$(k)) this.$(k).value = this._props[k] })
+          // Standard inputs
+          this.keys.forEach(k => {
+            if (this.$(k)) this.$(k).value = this._props[k]
+          })
 
-      // Back-compat: if schemaName/viewName exist in stored props, seed the first DS pair
-      const sn = this._props.schemaName
-      const vn = this._props.viewName
-      if ((sn || vn) && this._dsPairs.length > 0) {
-        this._dsPairs[0].schemaInp.value = sn
-        this._dsPairs[0].viewInp.value   = vn
-      }
+          // Back-compat: if schemaName/viewName exist in stored props, seed the first DS pair
+          const sn = this._props.schemaName
+          const vn = this._props.viewName
+          if ((sn || vn) && this._dsPairs.length > 0) {
+            this._dsPairs[0].schemaInp.value = sn
+            this._dsPairs[0].viewInp.value   = vn
+          }
 
-      // Memory
-      const enabledMemory = this._props.memoryMode === 'session' || this._props.memoryMode === 'hana_db'
-      this.$('memoryEnabled').checked = enabledMemory
-      this.$('memoryMode').value = this._props.memoryMode === 'hana_db' ? 'hana_db' : 'session'
-      this._syncMemoryUI()
+          // Restore selected system
+          this._switchSystem(this._props.databaseType === 'sap' ? 'sap' : 'datasphere')
 
-      if (!external) this._setDirty(false)
-      this._validateTheme()
-    }
+          // Memory
+          const enabledMemory = this._props.memoryMode === 'session' || this._props.memoryMode === 'hana_db'
+          this.$('memoryEnabled').checked = enabledMemory
+          this.$('memoryMode').value = this._props.memoryMode === 'hana_db' ? 'hana_db' : 'session'
+          this._syncMemoryUI()
+
+          if (!external) this._setDirty(false)
+          this._validateTheme()
+        }
+
+//      // Standard inputs
+//      this.keys.forEach(k => { if (this.$(k)) this.$(k).value = this._props[k] })
+//
+//      // Back-compat: if schemaName/viewName exist in stored props, seed the first DS pair
+//      const sn = this._props.schemaName
+//      const vn = this._props.viewName
+//      if ((sn || vn) && this._dsPairs.length > 0) {
+//        this._dsPairs[0].schemaInp.value = sn
+//        this._dsPairs[0].viewInp.value   = vn
+//      }
+//
+//      // Memory
+//      const enabledMemory = this._props.memoryMode === 'session' || this._props.memoryMode === 'hana_db'
+//      this.$('memoryEnabled').checked = enabledMemory
+//      this.$('memoryMode').value = this._props.memoryMode === 'hana_db' ? 'hana_db' : 'session'
+//      this._syncMemoryUI()
+//
+//      if (!external) this._setDirty(false)
+//      this._validateTheme()
+//    }
 
     // ── Snapshot for reset ─────────────────────────────────────────────────
 
@@ -877,16 +923,22 @@
 
     _collect () {
       const get = id => (this.$(id) ? this.$(id).value : '')
+
       // For backward compat: persist first DS pair as schemaName / viewName
       const firstDs = this._dsPairs.length > 0
-        ? { schema: this._dsPairs[0].schemaInp.value.trim(), view: this._dsPairs[0].viewInp.value.trim() }
+        ? {
+            schema: this._dsPairs[0].schemaInp.value.trim(),
+            view: this._dsPairs[0].viewInp.value.trim(),
+          }
         : { schema: '', view: '' }
+
       return {
         apiKey:          get('apiKey'),
         model:           get('model'),
         welcomeText:     get('welcomeText'),
         schemaName:      firstDs.schema,
         viewName:        firstDs.view,
+        databaseType:    this._activeSystem === 'sap' ? 'sap' : 'datasphere',
         memoryMode:      this.$('memoryEnabled').checked ? (get('memoryMode') || 'session') : 'disabled',
         primaryColor:    get('primaryColor'),
         primaryDark:     get('primaryDark'),
