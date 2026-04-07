@@ -4,7 +4,7 @@
 */
 (function () {
 
-  const BACKEND_URL = 'https://percibot.cfapps.us10-001.hana.ondemand.com'
+  const BACKEND_URL = 'http://54.173.130.239:8001'
   const CRYPTO_KEY  = 'percibot-default-key'
 
   function xorEncrypt (plaintext) {

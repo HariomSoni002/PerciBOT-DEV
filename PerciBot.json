@@ -3,9 +3,9 @@
   "license": "",
   "vendor": "HS",
   "id": "com.percipere.sac.percibot.dev",
-  "version": "1.2.0",
-  "name": "PerciBOT_DEV_HS",
-  "newInstancePrefix": "PerciBOT_DEV_HS",
+  "version": "1.0.1",
+  "name": "PerciBOT_tataC",
+  "newInstancePrefix": "PerciBOT_TataC",
   "description": "This is to test the UI changes. NOT FOR DEMO OR PRODUCTION.",
   "webcomponents": [
     {
